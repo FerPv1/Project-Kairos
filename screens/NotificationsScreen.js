@@ -7,10 +7,14 @@ import {
   TouchableOpacity, 
   Alert,
   Modal,
-  TextInput
+  TextInput,
+  SafeAreaView,
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { notificationService } from '../services/notificationService';
+import NotificationItem from '../components/NotificationItem';
 
 const NotificationsScreen = () => {
   const [notifications, setNotifications] = useState([]);
@@ -18,7 +22,8 @@ const NotificationsScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [newNotification, setNewNotification] = useState({
     title: '',
-    message: ''
+    message: '',
+    type: 'message'
   });
 
   // Cargar notificaciones al iniciar
@@ -39,11 +44,20 @@ const NotificationsScreen = () => {
   };
 
   // Marcar notificación como leída
-  const handleMarkAsRead = async (notificationId) => {
-    const success = await notificationService.markAsRead(notificationId);
-    if (success) {
-      loadNotifications();
+  const handleMarkAsRead = async (notification) => {
+    if (!notification.read) {
+      const success = await notificationService.markAsRead(notification.id);
+      if (success) {
+        loadNotifications();
+      }
     }
+    
+    // Mostrar detalles de la notificación
+    Alert.alert(
+      notification.title,
+      notification.message,
+      [{ text: 'Cerrar', style: 'default' }]
+    );
   };
 
   // Eliminar notificación
@@ -112,7 +126,8 @@ const NotificationsScreen = () => {
       setModalVisible(false);
       setNewNotification({
         title: '',
-        message: ''
+        message: '',
+        type: 'message'
       });
       loadNotifications();
       Alert.alert('Éxito', 'Notificación creada correctamente');
@@ -133,31 +148,18 @@ const NotificationsScreen = () => {
     });
   };
 
-  // Renderizar item de notificación
-  const renderNotificationItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[styles.notificationItem, !item.read && styles.unreadNotification]}
-      onPress={() => handleMarkAsRead(item.id)}
-    >
-      <View style={styles.notificationContent}>
-        <Text style={styles.notificationTitle}>{item.title}</Text>
-        <Text style={styles.notificationMessage}>{item.message}</Text>
-        <Text style={styles.notificationDate}>{formatDate(item.createdAt)}</Text>
-      </View>
-      
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={() => handleDeleteNotification(item.id)}
-      >
-        <MaterialIcons name="delete" size={24} color="#e74c3c" />
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-
-  return (
-    <View style={styles.container}>
+  // Renderizar encabezado con contador de no leídas
+  const renderHeader = () => {
+    const unreadCount = notifications.filter(n => !n.read).length;
+    
+    return (
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notificaciones</Text>
+        {unreadCount > 0 && (
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>{unreadCount}</Text>
+          </View>
+        )}
         {notifications.length > 0 && (
           <TouchableOpacity 
             style={styles.clearButton} 
@@ -167,17 +169,36 @@ const NotificationsScreen = () => {
           </TouchableOpacity>
         )}
       </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar backgroundColor="#3498db" barStyle="light-content" />
+      
+      {renderHeader()}
       
       {notifications.length > 0 ? (
         <FlatList
           data={notifications}
-          renderItem={renderNotificationItem}
+          renderItem={({ item }) => (
+            <NotificationItem 
+              notification={{
+                ...item,
+                time: formatDate(item.createdAt)
+              }}
+              onPress={handleMarkAsRead}
+              onDelete={handleDeleteNotification}
+            />
+          )}
           keyExtractor={item => item.id}
           refreshing={refreshing}
           onRefresh={loadNotifications}
+          contentContainerStyle={styles.listContainer}
         />
       ) : (
         <View style={styles.emptyContainer}>
+          <MaterialIcons name="notifications-off" size={60} color="#e0e0e0" />
           <Text style={styles.emptyText}>No tienes notificaciones</Text>
         </View>
       )}
@@ -201,6 +222,64 @@ const NotificationsScreen = () => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Nueva Notificación</Text>
             
+            <View style={styles.typeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  newNotification.type === 'message' && styles.selectedTypeButton
+                ]}
+                onPress={() => setNewNotification({...newNotification, type: 'message'})}
+              >
+                <MaterialIcons 
+                  name="message" 
+                  size={24} 
+                  color={newNotification.type === 'message' ? 'white' : '#9b59b6'} 
+                />
+                <Text style={[
+                  styles.typeText,
+                  newNotification.type === 'message' && styles.selectedTypeText
+                ]}>Mensaje</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  newNotification.type === 'event' && styles.selectedTypeButton,
+                  newNotification.type === 'event' && {backgroundColor: '#3498db20'}
+                ]}
+                onPress={() => setNewNotification({...newNotification, type: 'event'})}
+              >
+                <MaterialIcons 
+                  name="event" 
+                  size={24} 
+                  color={newNotification.type === 'event' ? 'white' : '#3498db'} 
+                />
+                <Text style={[
+                  styles.typeText,
+                  newNotification.type === 'event' && styles.selectedTypeText
+                ]}>Evento</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  newNotification.type === 'grade' && styles.selectedTypeButton,
+                  newNotification.type === 'grade' && {backgroundColor: '#f39c1220'}
+                ]}
+                onPress={() => setNewNotification({...newNotification, type: 'grade'})}
+              >
+                <MaterialIcons 
+                  name="school" 
+                  size={24} 
+                  color={newNotification.type === 'grade' ? 'white' : '#f39c12'} 
+                />
+                <Text style={[
+                  styles.typeText,
+                  newNotification.type === 'grade' && styles.selectedTypeText
+                ]}>Calificación</Text>
+              </TouchableOpacity>
+            </View>
+            
             <TextInput
               style={styles.input}
               placeholder="Título"
@@ -209,111 +288,90 @@ const NotificationsScreen = () => {
             />
             
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.messageInput]}
               placeholder="Mensaje"
               value={newNotification.message}
               onChangeText={(text) => setNewNotification({...newNotification, message: text})}
               multiline
+              numberOfLines={4}
+              textAlignVertical="top"
             />
             
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setModalVisible(false);
-                  setNewNotification({
-                    title: '',
-                    message: ''
-                  });
-                }}
+                onPress={() => setModalVisible(false)}
               >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={handleCreateNotification}
               >
-                <Text style={styles.saveButtonText}>Crear</Text>
+                <Text style={styles.saveButtonText}>Guardar</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: '#3498db',
     padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: 'white',
+    paddingTop: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-  },
-  clearButton: {
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  clearAllText: {
-    color: '#e74c3c',
-    fontSize: 14,
-  },
-  notificationItem: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    flexDirection: 'row',
-  },
-  unreadNotification: {
-    backgroundColor: '#ecf0f1',
-  },
-  notificationContent: {
+    color: 'white',
     flex: 1,
   },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  notificationDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  deleteButton: {
+  badgeContainer: {
+    backgroundColor: '#e74c3c',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 40,
+    marginRight: 10,
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  clearButton: {
+    padding: 8,
+  },
+  clearAllText: {
+    color: 'white',
+    fontSize: 14,
+  },
+  listContainer: {
+    padding: 15,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   emptyText: {
-    color: '#999',
-    fontSize: 16,
+    fontSize: 18,
+    color: '#95a5a6',
+    marginTop: 10,
   },
-  // Estilo para el botón flotante
   floatingButton: {
     position: 'absolute',
     bottom: 20,
@@ -333,35 +391,59 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 10,
+    margin: 20,
+    borderRadius: 15,
     padding: 20,
-    width: '80%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
     elevation: 5,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 20,
+    color: '#2c3e50',
     textAlign: 'center',
   },
-  input: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 5,
+  typeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  typeButton: {
+    flex: 1,
     padding: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+    marginHorizontal: 5,
+    backgroundColor: '#f5f5f5',
+  },
+  selectedTypeButton: {
+    backgroundColor: '#9b59b6',
+  },
+  typeText: {
+    marginTop: 5,
+    fontSize: 12,
+    color: '#7f8c8d',
+  },
+  selectedTypeText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  input: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    padding: 15,
     marginBottom: 15,
   },
-  textArea: {
+  messageInput: {
     height: 100,
-    textAlignVertical: 'top',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -369,16 +451,17 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    padding: 10,
-    borderRadius: 5,
+    padding: 15,
+    borderRadius: 10,
     alignItems: 'center',
+    marginHorizontal: 5,
   },
   cancelButton: {
     backgroundColor: '#ecf0f1',
-    marginRight: 10,
   },
   cancelButtonText: {
     color: '#7f8c8d',
+    fontWeight: 'bold',
   },
   saveButton: {
     backgroundColor: '#3498db',

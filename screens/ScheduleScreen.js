@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,9 +7,11 @@ import {
   ScrollView,
   Modal,
   TextInput,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { scheduleService } from '../services/scheduleService';
 
 const ScheduleScreen = () => {
   const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -21,55 +23,38 @@ const ScheduleScreen = () => {
   const [className, setClassName] = useState('');
   const [classTeacher, setClassTeacher] = useState('');
   const [classRoom, setClassRoom] = useState('');
+  const [schedule, setSchedule] = useState({});
+  const [loading, setLoading] = useState(true);
   
-  // Estado inicial del horario
-  const [schedule, setSchedule] = useState({
-    'Lunes': {
-      '7:00 - 8:00': { subject: 'Matemáticas', teacher: 'Prof. García', room: 'A101' },
-      '8:00 - 9:00': { subject: 'Español', teacher: 'Prof. Rodríguez', room: 'A102' },
-      '9:00 - 10:00': { subject: 'Ciencias', teacher: 'Prof. López', room: 'B201' },
-      '10:00 - 11:00': { subject: 'Recreo', teacher: '', room: 'Patio' },
-      '11:00 - 12:00': { subject: 'Historia', teacher: 'Prof. Martínez', room: 'A103' },
-      '12:00 - 13:00': { subject: 'Inglés', teacher: 'Prof. Smith', room: 'B202' },
-      '13:00 - 14:00': { subject: 'Educación Física', teacher: 'Prof. Hernández', room: 'Gimnasio' },
-    },
-    'Martes': {
-      '7:00 - 8:00': { subject: 'Ciencias', teacher: 'Prof. López', room: 'B201' },
-      '8:00 - 9:00': { subject: 'Matemáticas', teacher: 'Prof. García', room: 'A101' },
-      '9:00 - 10:00': { subject: 'Inglés', teacher: 'Prof. Smith', room: 'B202' },
-      '10:00 - 11:00': { subject: 'Recreo', teacher: '', room: 'Patio' },
-      '11:00 - 12:00': { subject: 'Español', teacher: 'Prof. Rodríguez', room: 'A102' },
-      '12:00 - 13:00': { subject: 'Arte', teacher: 'Prof. Gómez', room: 'C301' },
-      '13:00 - 14:00': { subject: 'Tutoría', teacher: 'Prof. Martínez', room: 'A103' },
-    },
-    'Miércoles': {
-      '7:00 - 8:00': { subject: 'Historia', teacher: 'Prof. Martínez', room: 'A103' },
-      '8:00 - 9:00': { subject: 'Ciencias', teacher: 'Prof. López', room: 'B201' },
-      '9:00 - 10:00': { subject: 'Matemáticas', teacher: 'Prof. García', room: 'A101' },
-      '10:00 - 11:00': { subject: 'Recreo', teacher: '', room: 'Patio' },
-      '11:00 - 12:00': { subject: 'Educación Física', teacher: 'Prof. Hernández', room: 'Gimnasio' },
-      '12:00 - 13:00': { subject: 'Español', teacher: 'Prof. Rodríguez', room: 'A102' },
-      '13:00 - 14:00': { subject: 'Tecnología', teacher: 'Prof. Ramírez', room: 'Lab 1' },
-    },
-    'Jueves': {
-      '7:00 - 8:00': { subject: 'Inglés', teacher: 'Prof. Smith', room: 'B202' },
-      '8:00 - 9:00': { subject: 'Historia', teacher: 'Prof. Martínez', room: 'A103' },
-      '9:00 - 10:00': { subject: 'Español', teacher: 'Prof. Rodríguez', room: 'A102' },
-      '10:00 - 11:00': { subject: 'Recreo', teacher: '', room: 'Patio' },
-      '11:00 - 12:00': { subject: 'Matemáticas', teacher: 'Prof. García', room: 'A101' },
-      '12:00 - 13:00': { subject: 'Ciencias', teacher: 'Prof. López', room: 'B201' },
-      '13:00 - 14:00': { subject: 'Música', teacher: 'Prof. Torres', room: 'Auditorio' },
-    },
-    'Viernes': {
-      '7:00 - 8:00': { subject: 'Educación Física', teacher: 'Prof. Hernández', room: 'Gimnasio' },
-      '8:00 - 9:00': { subject: 'Tecnología', teacher: 'Prof. Ramírez', room: 'Lab 1' },
-      '9:00 - 10:00': { subject: 'Matemáticas', teacher: 'Prof. García', room: 'A101' },
-      '10:00 - 11:00': { subject: 'Recreo', teacher: '', room: 'Patio' },
-      '11:00 - 12:00': { subject: 'Ciencias', teacher: 'Prof. López', room: 'B201' },
-      '12:00 - 13:00': { subject: 'Español', teacher: 'Prof. Rodríguez', room: 'A102' },
-      '13:00 - 14:00': { subject: 'Arte', teacher: 'Prof. Gómez', room: 'C301' },
-    },
-  });
+  // Nuevo estado para el grado seleccionado
+  const [selectedGrade, setSelectedGrade] = useState('3° Grado');
+  
+  // Lista de grados disponibles
+  const availableGrades = [
+    'Sección I', 'Sección II', 'Sección III',  // Inicial
+    '1° Grado', '2° Grado', '3° Grado', '4° Grado', '5° Grado', '6° Grado'  // Primaria
+  ];
+  
+  // Cargar datos del horario al iniciar
+  useEffect(() => {
+    loadScheduleData();
+  }, [selectedGrade]);
+
+  // Cargar datos del horario desde el servicio
+  const loadScheduleData = async () => {
+    setLoading(true);
+    try {
+      // En una implementación real, aquí se cargaría el horario específico para el grado seleccionado
+      // Por ahora, usamos el mismo horario para todos los grados
+      const scheduleData = await scheduleService.getFullSchedule();
+      setSchedule(scheduleData);
+    } catch (error) {
+      console.error('Error al cargar datos del horario:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos del horario');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const editClass = (timeSlot) => {
     const currentClass = schedule[selectedDay][timeSlot];
@@ -81,33 +66,55 @@ const ScheduleScreen = () => {
     setModalVisible(true);
   };
 
-  const saveClass = () => {
+  const saveClass = async () => {
     if (!className.trim()) {
       Alert.alert('Error', 'Por favor ingresa el nombre de la clase');
       return;
     }
 
-    setSchedule(prevSchedule => ({
-      ...prevSchedule,
-      [selectedDay]: {
-        ...prevSchedule[selectedDay],
-        [editingClass]: {
-          subject: className,
-          teacher: classTeacher,
-          room: classRoom
-        }
-      }
-    }));
+    try {
+      const classData = {
+        subject: className,
+        teacher: classTeacher,
+        room: classRoom,
+        grade: selectedGrade  // Agregar el grado al guardar la clase
+      };
+      
+      // Guardar en el servicio
+      const success = await scheduleService.updateClass(selectedDay, editingClass, classData);
+      
+      if (success) {
+        // Actualizar estado local
+        setSchedule(prevSchedule => ({
+          ...prevSchedule,
+          [selectedDay]: {
+            ...prevSchedule[selectedDay],
+            [editingClass]: classData
+          }
+        }));
 
-    // Limpiar el formulario y cerrar el modal
-    setModalVisible(false);
-    setEditingClass(null);
-    setClassName('');
-    setClassTeacher('');
-    setClassRoom('');
+        // Limpiar el formulario y cerrar el modal
+        setModalVisible(false);
+        setEditingClass(null);
+        setClassName('');
+        setClassTeacher('');
+        setClassRoom('');
+        
+        Alert.alert('Éxito', 'Clase actualizada correctamente');
+      } else {
+        Alert.alert('Error', 'No se pudo actualizar la clase');
+      }
+    } catch (error) {
+      console.error('Error al guardar clase:', error);
+      Alert.alert('Error', 'Ocurrió un error al guardar la clase');
+    }
   };
 
   const renderTimeSlot = (timeSlot) => {
+    if (!schedule[selectedDay] || !schedule[selectedDay][timeSlot]) {
+      return null;
+    }
+    
     const classInfo = schedule[selectedDay][timeSlot];
     
     return (
@@ -135,10 +142,47 @@ const ScheduleScreen = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3498db" />
+        <Text style={styles.loadingText}>Cargando horario...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Horario Escolar</Text>
+      </View>
+      
+      {/* Selector de grado */}
+      <View style={styles.gradeSelector}>
+        <Text style={styles.gradeSelectorLabel}>Grado:</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.gradeSelectorContent}
+        >
+          {availableGrades.map(grade => (
+            <TouchableOpacity
+              key={grade}
+              style={[
+                styles.gradeButton,
+                selectedGrade === grade ? styles.selectedGradeButton : {}
+              ]}
+              onPress={() => setSelectedGrade(grade)}
+            >
+              <Text style={[
+                styles.gradeButtonText,
+                selectedGrade === grade ? styles.selectedGradeButtonText : {}
+              ]}>
+                {grade}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
       
       <View style={styles.daysContainer}>
@@ -164,7 +208,9 @@ const ScheduleScreen = () => {
       </View>
       
       <View style={styles.scheduleContainer}>
-        <Text style={styles.scheduleTitle}>Horario para {selectedDay}</Text>
+        <Text style={styles.scheduleTitle}>
+          Horario para {selectedGrade} - {selectedDay}
+        </Text>
         
         <ScrollView style={styles.classesList}>
           {timeSlots.map(timeSlot => renderTimeSlot(timeSlot))}
@@ -206,14 +252,14 @@ const ScheduleScreen = () => {
             />
             
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setModalVisible(false)}
               >
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={saveClass}
               >
@@ -232,9 +278,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#7f8c8d',
+  },
   header: {
     backgroundColor: '#3498db',
     padding: 15,
+    paddingTop: 40,
     alignItems: 'center',
   },
   headerTitle: {
@@ -242,26 +299,61 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
   },
+  // Estilos para el selector de grado
+  gradeSelector: {
+    backgroundColor: 'white',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  gradeSelectorLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#7f8c8d',
+    marginBottom: 5,
+  },
+  gradeSelectorContent: {
+    paddingVertical: 5,
+  },
+  gradeButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    marginRight: 8,
+  },
+  selectedGradeButton: {
+    backgroundColor: '#3498db',
+  },
+  gradeButtonText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  selectedGradeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
   daysContainer: {
     backgroundColor: 'white',
-    paddingVertical: 10,
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   dayButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    marginHorizontal: 5,
-    borderRadius: 20,
-    backgroundColor: '#ecf0f1',
+    borderRadius: 5,
+    marginRight: 10,
   },
   selectedDayButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: 'rgba(52, 152, 219, 0.1)',
   },
   dayButtonText: {
     fontSize: 16,
     color: '#7f8c8d',
   },
   selectedDayButtonText: {
-    color: 'white',
+    color: '#3498db',
     fontWeight: 'bold',
   },
   scheduleContainer: {
@@ -272,17 +364,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#2c3e50',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   classesList: {
     flex: 1,
   },
   classItem: {
+    flexDirection: 'row',
     backgroundColor: 'white',
     borderRadius: 10,
     padding: 15,
     marginBottom: 10,
-    flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -291,16 +383,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   timeContainer: {
-    backgroundColor: '#3498db',
-    paddingVertical: 5,
+    backgroundColor: '#f0f0f0',
     paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 5,
-    marginRight: 15,
+    marginRight: 10,
   },
   timeText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
+    fontSize: 14,
+    color: '#7f8c8d',
   },
   classInfoContainer: {
     flex: 1,
@@ -309,11 +400,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2c3e50',
+    marginBottom: 5,
   },
   classDetails: {
     fontSize: 14,
     color: '#7f8c8d',
-    marginTop: 2,
   },
   modalContainer: {
     flex: 1,
@@ -340,7 +431,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f8f9fa',
     borderRadius: 5,
     padding: 10,
     marginBottom: 15,
@@ -350,20 +441,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   modalButton: {
-    padding: 10,
+    flex: 1,
+    paddingVertical: 10,
     borderRadius: 5,
-    width: '48%',
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#ecf0f1',
+    backgroundColor: '#f8f9fa',
+    marginRight: 10,
+  },
+  saveButton: {
+    backgroundColor: '#3498db',
   },
   cancelButtonText: {
     color: '#7f8c8d',
     fontWeight: 'bold',
-  },
-  saveButton: {
-    backgroundColor: '#3498db',
   },
   saveButtonText: {
     color: 'white',

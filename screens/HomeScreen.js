@@ -139,7 +139,7 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
         
-        {/* Sección de eventos recientes - MOVIDA DESPUÉS DE LOS PANELES */}
+        {/* Sección de eventos recientes */}
         <View style={styles.eventsSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Eventos Recientes</Text>
@@ -152,19 +152,25 @@ const HomeScreen = ({ navigation }) => {
             recentEvents.map(event => (
               <View key={event.id} style={styles.eventItem}>
                 <View style={styles.eventDateBadge}>
-                  <Text style={styles.eventDateText}>{new Date(event.date).getDate()}</Text>
-                  <Text style={styles.eventMonthText}>
+                  <Text style={styles.eventDateDay}>{new Date(event.date).getDate()}</Text>
+                  <Text style={styles.eventDateMonth}>
                     {new Date(event.date).toLocaleDateString('es-ES', { month: 'short' })}
                   </Text>
                 </View>
                 <View style={styles.eventInfo}>
                   <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventTime}>{event.time}</Text>
+                  <View style={styles.eventTimeContainer}>
+                    <MaterialIcons name="access-time" size={14} color="#7f8c8d" />
+                    <Text style={styles.eventTime}>{event.time}</Text>
+                  </View>
                 </View>
               </View>
             ))
           ) : (
-            <Text style={styles.noEventsText}>No hay eventos próximos</Text>
+            <View style={styles.noEventsContainer}>
+              <MaterialIcons name="event-busy" size={40} color="#e0e0e0" />
+              <Text style={styles.noEventsText}>No hay eventos próximos</Text>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -289,6 +295,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#7f8c8d',
     marginTop: 3,
+  },
+  eventsSection: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 15,
+    marginHorizontal: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#3498db',
+  },
+  eventItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  eventDateBadge: {
+    width: 45,
+    height: 45,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  eventDateDay: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  eventDateMonth: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    textTransform: 'uppercase',
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  eventTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventTime: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    marginLeft: 4,
+  },
+  noEventsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  noEventsText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#95a5a6',
+    textAlign: 'center',
   },
 });
 

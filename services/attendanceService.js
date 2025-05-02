@@ -3,15 +3,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Clave para almacenar datos de asistencia
 const ATTENDANCE_KEY = 'attendance_data';
 
+// Datos de ejemplo para estudiantes
+const studentsData = [
+  { id: 1, firstName: 'Juan', lastName: 'Pérez', grade: '3° Grado', section: 'A' },
+  { id: 2, firstName: 'María', lastName: 'González', grade: '3° Grado', section: 'A' },
+  { id: 3, firstName: 'Carlos', lastName: 'Rodríguez', grade: '3° Grado', section: 'B' },
+  { id: 4, firstName: 'Ana', lastName: 'López', grade: '4° Grado', section: 'A' },
+  { id: 5, firstName: 'Luis', lastName: 'Martínez', grade: '4° Grado', section: 'B' },
+];
+
 // Inicializar datos de asistencia
 const initializeAttendanceData = async () => {
   try {
     const existingData = await AsyncStorage.getItem(ATTENDANCE_KEY);
     if (!existingData) {
-      // Estructura inicial vacía
-      const initialData = {
-        records: {}
-      };
+      // Crear estructura inicial vacía
+      const initialData = {};
       await AsyncStorage.setItem(ATTENDANCE_KEY, JSON.stringify(initialData));
     }
   } catch (error) {
@@ -23,163 +30,60 @@ const initializeAttendanceData = async () => {
 initializeAttendanceData();
 
 export const attendanceService = {
-  /**
-   * Registrar asistencia de un estudiante
-   * @param {string} studentId - ID del estudiante
-   * @param {string} date - Fecha en formato YYYY-MM-DD
-   * @param {boolean} present - true si está presente, false si está ausente
-   * @param {string} classId - ID de la clase (opcional)
-   * @returns {Promise<Object>} - Registro de asistencia
-   */
-  registerAttendance: async (studentId, date, present, classId = null) => {
+  // Obtener lista de estudiantes
+  getStudents: async () => {
+    // En una implementación real, esto vendría de una API
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(studentsData);
+      }, 1000);
+    });
+  },
+  
+  // Obtener asistencia por fecha
+  getAttendanceByDate: async (date) => {
     try {
-      // Si no se proporciona una fecha, usar la fecha actual
-      if (!date) {
-        const today = new Date();
-        date = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-      }
-      
       const attendanceData = await AsyncStorage.getItem(ATTENDANCE_KEY);
-      let data = JSON.parse(attendanceData);
+      const parsedData = JSON.parse(attendanceData) || {};
       
-      // Crear clave para la fecha si no existe
-      if (!data.records[date]) {
-        data.records[date] = {};
-      }
-      
-      // Registrar asistencia
-      const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-      
-      const attendanceRecord = {
-        studentId,
-        present,
-        time,
-        classId,
-        timestamp: Date.now()
-      };
-      
-      data.records[date][studentId] = attendanceRecord;
-      
-      // Guardar datos actualizados
-      await AsyncStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data));
-      
-      return attendanceRecord;
+      return parsedData[date] || {};
     } catch (error) {
-      console.error('Error al registrar asistencia:', error);
+      console.error('Error al obtener asistencia:', error);
       throw error;
     }
   },
   
-  /**
-   * Obtener asistencia de un día específico
-   * @param {string} date - Fecha en formato YYYY-MM-DD
-   * @returns {Promise<Object>} - Registros de asistencia del día
-   */
-  getAttendanceByDate: async (date) => {
+  // Actualizar asistencia de un estudiante
+  updateAttendance: async (studentId, date, isPresent) => {
     try {
-      // Si no se proporciona una fecha, usar la fecha actual
-      if (!date) {
-        const today = new Date();
-        date = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+      const attendanceData = await AsyncStorage.getItem(ATTENDANCE_KEY);
+      const parsedData = JSON.parse(attendanceData) || {};
+      
+      // Asegurarse de que existe la estructura para la fecha
+      if (!parsedData[date]) {
+        parsedData[date] = {};
       }
       
-      const attendanceData = await AsyncStorage.getItem(ATTENDANCE_KEY);
-      const data = JSON.parse(attendanceData);
+      // Actualizar el estado de asistencia
+      parsedData[date][studentId] = isPresent;
       
-      return data.records[date] || {};
+      // Guardar los datos actualizados
+      await AsyncStorage.setItem(ATTENDANCE_KEY, JSON.stringify(parsedData));
+      
+      return true;
     } catch (error) {
-      console.error('Error al obtener asistencia por fecha:', error);
-      return {};
+      console.error('Error al actualizar asistencia:', error);
+      throw error;
     }
   },
   
-  /**
-   * Obtener historial de asistencia de un estudiante
-   * @param {string} studentId - ID del estudiante
-   * @returns {Promise<Array>} - Historial de asistencia
-   */
-  getStudentAttendanceHistory: async (studentId) => {
+  // Registrar asistencia mediante reconocimiento facial
+  registerAttendanceByFace: async (studentId, date) => {
     try {
-      const attendanceData = await AsyncStorage.getItem(ATTENDANCE_KEY);
-      const data = JSON.parse(attendanceData);
-      
-      const history = [];
-      
-      // Recorrer todas las fechas
-      for (const date in data.records) {
-        // Si hay un registro para este estudiante en esta fecha
-        if (data.records[date][studentId]) {
-          history.push({
-            date,
-            ...data.records[date][studentId]
-          });
-        }
-      }
-      
-      // Ordenar por fecha (más reciente primero)
-      return history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      return await attendanceService.updateAttendance(studentId, date, true);
     } catch (error) {
-      console.error('Error al obtener historial de asistencia:', error);
-      return [];
-    }
-  },
-  
-  /**
-   * Obtener estadísticas de asistencia
-   * @param {string} classId - ID de la clase (opcional)
-   * @param {string} startDate - Fecha de inicio en formato YYYY-MM-DD (opcional)
-   * @param {string} endDate - Fecha de fin en formato YYYY-MM-DD (opcional)
-   * @returns {Promise<Object>} - Estadísticas de asistencia
-   */
-  getAttendanceStats: async (classId = null, startDate = null, endDate = null) => {
-    try {
-      const attendanceData = await AsyncStorage.getItem(ATTENDANCE_KEY);
-      const data = JSON.parse(attendanceData);
-      
-      let totalRecords = 0;
-      let presentCount = 0;
-      
-      // Filtrar por fechas si se especifican
-      const dates = Object.keys(data.records);
-      const filteredDates = dates.filter(date => {
-        if (startDate && date < startDate) return false;
-        if (endDate && date > endDate) return false;
-        return true;
-      });
-      
-      // Calcular estadísticas
-      filteredDates.forEach(date => {
-        const dayRecords = data.records[date];
-        
-        for (const studentId in dayRecords) {
-          const record = dayRecords[studentId];
-          
-          // Filtrar por clase si se especifica
-          if (classId && record.classId !== classId) continue;
-          
-          totalRecords++;
-          if (record.present) {
-            presentCount++;
-          }
-        }
-      });
-      
-      const attendanceRate = totalRecords > 0 ? (presentCount / totalRecords) * 100 : 0;
-      
-      return {
-        totalRecords,
-        presentCount,
-        absentCount: totalRecords - presentCount,
-        attendanceRate: attendanceRate.toFixed(2)
-      };
-    } catch (error) {
-      console.error('Error al obtener estadísticas de asistencia:', error);
-      return {
-        totalRecords: 0,
-        presentCount: 0,
-        absentCount: 0,
-        attendanceRate: 0
-      };
+      console.error('Error al registrar asistencia por reconocimiento facial:', error);
+      throw error;
     }
   }
 };

@@ -12,6 +12,7 @@ import StudentsScreen from '../screens/StudentsScreen';
 import StudentDetailScreen from '../screens/StudentDetailScreen';
 import FaceRecognitionScreen from '../screens/FaceRecognitionScreen';
 import StudentGradesScreen from '../screens/StudentGradesScreen';
+import GradesScreen from '../screens/GradesScreen'; // Añadir esta importación
 import ProfileScreen from '../screens/ProfileScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 
@@ -65,13 +66,17 @@ const AppNavigator = ({ isAuthenticated }) => {
           headerShown: false,
         }}
       >
-        {!isAuthenticated ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
-        ) : (
+        <Stack.Screen name="Login" component={LoginScreen} />
+        {isAuthenticated && (
           <>
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen name="StudentDetail" component={StudentDetailScreen} />
-            <Stack.Screen name="FaceRecognition" component={FaceRecognitionScreen} />
+            <Stack.Screen 
+              name="FaceRecognition" 
+              component={FaceRecognitionScreen} 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen name="Grades" component={GradesScreen} />
             <Stack.Screen name="StudentGrades" component={StudentGradesScreen} />
           </>
         )}
